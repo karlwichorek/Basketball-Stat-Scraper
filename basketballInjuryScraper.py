@@ -1,13 +1,11 @@
 #!/usr/bin/env python3
 
-# basketball-reference.py
+# .basketballInjuryScraper.py
 # Simon Swanson
 
 from   bs4      import BeautifulSoup
 import csv
-import re
 from   requests import get
-import sys
 
 prefix = "http://www.prosportstransactions.com/basketball/Search/"
 
@@ -28,7 +26,8 @@ def getData(link):
 def rowParse(line):
     row   = []
     parts = line.findAll("td")
-    row.append(parts[0].text.strip())
+    date  = parts[0].text.strip().replace("-", "")
+    row.append(int(date))
     row.append(parts[1].text.strip())
     row.append(parts[2].text.strip()) if parts[2].text.strip() else row.append(parts[3].text.strip())
     row.append(parts[4].text.strip())
@@ -37,7 +36,7 @@ def rowParse(line):
 def main():
     links = getLinks("SearchResults.php?Player&Team&BeginDate&EndDate&InjuriesChkBx=yes&Submit=Search&start=0")
     with open("injuries.csv", "w", newline="") as fp:
-        injury = csv.writer(fp, delimiter=";", quoting=csv.QUOTE_ALL)
+        injury = csv.writer(fp, quoting=csv.QUOTE_NONNUMERIC)
         injury.writerow(["Date", "Team", "Player", "Notes"])
         for link in links:
             data = getData(link)
