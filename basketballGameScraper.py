@@ -254,10 +254,9 @@ def seasonParse(season):
         dayStats  = csv.writer(fpDay, quoting=csv.QUOTE_NONNUMERIC)
         dayStats.writerow(boxStatList)
         for month in list(range(8,13)) + list(range(1,8)):
-            time.sleep(10)
             year = season + 1 if month < 8 else season
             for day in monthRange(year, month):
-                time.sleep(1)
+                time.sleep(10)
                 stats = dayParse(day, month, year)
                 for game in stats[0]:
                     dayStats.writerows(game)
