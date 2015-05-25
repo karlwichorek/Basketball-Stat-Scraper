@@ -11,6 +11,7 @@ from   requests import get
 import time
 
 
+COUNT    = 0
 TEAMS    = []
 PREVIOUS = []
 TODAY    = []
@@ -210,6 +211,7 @@ def teamProcess(soup):
 
 
 def dayParse(day, month, year):
+    global COUNT
     global TEAMS
     global PREVIOUS
     global TODAY
@@ -218,12 +220,13 @@ def dayParse(day, month, year):
     soup = BeautifulSoup(get("http://www.basketball-reference.com/boxscores/index.cgi?month={}&day={}&year={}".format(month, day, year)).text)
     if validDate(soup):
         
-        boxTags   = soup.findAll("a", href=re.compile(r"/boxscores/.+\.html"), text="Box Score")
+        boxTags   = soup.findAll("a", href=re.compile(r"/boxscores/.+\.html"), text="Final")
         boxLinks  = [tag.get("href") for tag in boxTags]
         dateVal   = int(str(year) + str(month) + str(day))
         for boxLink in boxLinks:
             boxSoup = BeautifulSoup(get("http://www.basketball-reference.com/{}".format(boxLink)).text)
             boxStats.append(boxProcess(boxSoup, dateVal))
+            COUNT+=1
 
         teamTags  = soup.findAll("a", href=re.compile(r"/teams/\w+/\d+\.html"))
         teamLinks = [tag.get("href") for tag in teamTags]
@@ -241,6 +244,7 @@ def dayParse(day, month, year):
     
 
 def seasonParse(season):
+    global COUNT
     global TEAMS
     TEAMS        = []
     yearStatList = ["Name", "Position", "Height", "Weight", "Exp", "Age", "G", "GS", "MP", "3PA", "FGA", "PF", "PER", "USG%", "OWS", "DWS", "PG", "PGS", "PMP", "P3PA", "PFGA", "PPF", "PPER", "PUSG%", "POWS", "PDWS", "TORtg", "TDRtg"]
@@ -253,23 +257,25 @@ def seasonParse(season):
         yearStats.writerow(yearStatList)
         dayStats  = csv.writer(fpDay, quoting=csv.QUOTE_NONNUMERIC)
         dayStats.writerow(boxStatList)
-        for month in list(range(8,13)) + list(range(1,8)):
+        for month in list(range(10,13)) + list(range(1,6)):
             year = season + 1 if month < 8 else season
             for day in monthRange(year, month):
-                time.sleep(10)
                 stats = dayParse(day, month, year)
                 for game in stats[0]:
                     dayStats.writerows(game)
                 for team in stats[1]:
                     yearStats.writerows(team)
+                if COUNT > 99:
+                    print("100 more games entered")
+                    COUNT-=100
     print("Season {} done".format(yearString))
-    time.sleep(30)
+    time.sleep(10)
     return None
 
 
 def main():
-    [seasonParse(season) for season in list(range(1985, 2014))]
-    # [seasonParse(season) for season in [2014]]
+    for season in list(range(1985, 2014)):
+        seasonParse(season)
     return None
 
 if __name__ == '__main__':
