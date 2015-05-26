@@ -56,5 +56,17 @@ dateFix <- function(filename) {
         print(paste("Something went wrong with file", filename))
         return(NULL)
     }
-    return("Done")
+    print("Done")
+    return(NULL)
+}
+
+magicButton <- function() {
+    for (year in 1985:2013) {
+        plusOne <- year + 1
+        yearString <- paste(toString(year), toString(plusOne), sep = "-")
+        gameString <- paste("GameStats", yearString, ".csv", sep = "")
+        statString <- paste("YearStats", yearString, ".csv", sep = "")
+        dateFix(gameString)
+        dateFix(statString)
+    }
 }
