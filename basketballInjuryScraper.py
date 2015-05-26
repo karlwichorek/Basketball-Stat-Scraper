@@ -26,8 +26,11 @@ def getData(link):
 def rowParse(line):
     row   = []
     parts = line.findAll("td")
-    date  = parts[0].text.strip().replace("-", "")
-    row.append(int(date))
+    date  = parts[0].text.strip().split("-")
+    for part in date:
+        if len(part) < 2:
+            part = "0" + part
+    row.append(int("".join(date)))
     row.append(parts[1].text.strip())
     row.append(parts[2].text.strip()) if parts[2].text.strip() else row.append(parts[3].text.strip())
     row.append(parts[4].text.strip())
