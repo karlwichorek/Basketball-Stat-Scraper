@@ -35,14 +35,14 @@ dateLenFix <- function(date) {
     return(c(oldDate, newDate))
 }
 
-dateFix <- function(filename) {
+dateFix <- function(filename, year) {
     data     <- read.csv(filename, header=TRUE)
     oldDates <- data$Date
-    posDates <- fillDates(floor(oldDates[1] / 10^(floor(log10(oldDates[1])) - 3)))
+    posDates <- fillDates(year)
     fixDates <- c()
     for (date in oldDates) {
         dateOpts <- dateLenFix(posDates[[1]])
-        while (date != dateOpts[1]) {
+        while (date != dateOpts[1] && date != dateOpts[2]) {
             posDates[[1]] <- NULL
             dateOpts      <- dateLenFix(posDates[[1]])
         }
@@ -51,7 +51,7 @@ dateFix <- function(filename) {
     if (length(fixDates) == length(oldDates)) {
         print("Exporting updates")
         data$Date <- fixDates
-        write.csv(data, file = filename, row.names = FALSE)
+        write.csv(data, file = filename)
     } else {
         print(paste("Something went wrong with file", filename))
         return(NULL)
@@ -61,12 +61,12 @@ dateFix <- function(filename) {
 }
 
 magicButton <- function() {
-    for (year in 1985:2013) {
+    path <- "Programs/GitHub/Basketball Stat Scraper/"
+    for (year in 1989:2013) {
         plusOne <- year + 1
         yearString <- paste(toString(year), toString(plusOne), sep = "-")
-        gameString <- paste("GameStats", yearString, ".csv", sep = "")
-        statString <- paste("YearStats", yearString, ".csv", sep = "")
-        dateFix(gameString)
-        dateFix(statString)
+        print(paste("Working on", yearString))
+        gameString <- paste(path, "GameStats", yearString, ".csv", sep = "")
+        dateFix(gameString, year)
     }
 }
