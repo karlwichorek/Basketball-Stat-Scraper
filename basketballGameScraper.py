@@ -22,7 +22,7 @@ def iint(string):
 
 
 def ffloat(string):
-    return float(string) if string and string.isdigit() else 0
+    return float(string) if string and re.match(r"^-?\d*\.?\d*$", string) is not None else 0
 
 
 def validDate(soup):
@@ -58,14 +58,12 @@ def boxProcess(soup, date):
     basicTables    = soup.findAll("table", id=re.compile(r"\w\w\w_basic"))
     advancedTables = soup.findAll("table", id=re.compile(r"\w\w\w_advanced"))
     teams          = findTeams(soup)
-    teamORtg       = [0,0]
-    teamDRtg       = [0,0]
     TODAY.append(teams[0])
     TODAY.append(teams[1])
 
     for i in [0,1]:
         players = basicTables[i].tbody.findAll("tr")
-        starter = 1
+        starter = 5
         for player in players:
             if sorted(player.get("class")) == ["no_ranker", "thead"] or sorted(player.get("class")) == ["bold_text", "stat_total"]:
                 starter = 0
@@ -78,12 +76,14 @@ def boxProcess(soup, date):
             info.append(date)
             info.append(name)
             info.append(teams[i])
-            info.append(starter)
-            info.append(1) if teams[i] in PREVIOUS else info.append(0)
+            info.append(1 if starter > 5 else 0)
+            info.append(1 if teams[i] in PREVIOUS else 0)
             info.append(rows[1].text.strip())
+            info.append(iint(rows[3].text.strip()))
             info.append(iint(rows[6].text.strip()))
             info.append(iint(rows[18].text.strip()))
             team[name] = info
+            starter -= 1
 
         players = advancedTables[i].tbody.findAll("tr")
         for player in players:
@@ -91,10 +91,6 @@ def boxProcess(soup, date):
                 continue
             rows = player.findAll("td")
             if len(rows) == 2:
-                continue
-            if sorted(player.get("class")) == ["bold_text", "stat_total"]:
-                teamORtg[i] = ffloat(rows[14].text.strip())
-                teamDRtg[i] = ffloat(rows[15].text.strip())
                 continue
             name = rows[0].text.strip()
             if name in team.keys():
@@ -107,21 +103,29 @@ def boxProcess(soup, date):
             else:
                 print("Something bad looking up a box score with {}".format(name))
 
-
-        for player in team.keys():
-            if team[player][1] == teams[i]:
-                team[player].append(teamORtg[i])
-                team[player].append(teamDRtg[i])
+        rows = advancedTables[i].tfoot.findAll("td")
+        oRtg = ffloat(rows[14].text.strip())
+        dRtg = ffloat(rows[15].text.strip())
+        for name in team.keys():
+            while (len(team[name]) < 15):
+                team[name].append("NA")
+            if team[name][2] == teams[i]:
+                team[name].append(oRtg)
+                team[name].append(dRtg)
 
     players = []
-    for player in team.keys():
-        players.append(team[player])
+    [players.append(team[player]) for player in team.keys()]
 
     return players
 
 
-def teamProcess(soup):
-    team = {}
+def teamProcess(soup, link):
+    team  = {}
+    match = re.search(r"/teams/(\w\w\w)/\d+\.html", link)
+    if match:
+        teamName = match.group(1)
+    else:
+        teamName = "NAN"
 
     roster = soup.find("table", id="roster").tbody.findAll("tr")
     for player in roster:
@@ -129,11 +133,12 @@ def teamProcess(soup):
         rows = player.findAll("td")
         name = rows[1].text.strip()
         info.append(name)
+        info.append(teamName)
         info.append(rows[2].text.strip())
         info.append(feetToInches(rows[3].text.strip()))
         info.append(iint(rows[4].text.strip()))
         info.append(iint(rows[6].text.strip()))
-        team[name] = info
+        team[name + teamName] = info
 
     totals = soup.find("table", id="totals").tbody.findAll("tr") 
     for player in totals:
@@ -141,11 +146,13 @@ def teamProcess(soup):
         name = rows[1].text.strip()
         if name == "Team Totals":
             continue
+        else:
+            name = name + teamName
         if name in team.keys():
             team[name].append(iint(rows[2].text.strip()))
             team[name].append(iint(rows[3].text.strip()))
             team[name].append(iint(rows[4].text.strip()))
-            team[name].append(rows[5].text.strip())
+            team[name].append(iint(rows[5].text.strip()))
             team[name].append(iint(rows[7].text.strip()))
             team[name].append(iint(rows[10].text.strip()))
             team[name].append(iint(rows[26].text.strip()))
@@ -155,7 +162,7 @@ def teamProcess(soup):
     advanced = soup.find("table", id="advanced").tbody.findAll("tr")
     for player in advanced:
         rows = player.findAll("td")
-        name = rows[1].text.strip()
+        name = rows[1].text.strip() + teamName
         if name in team.keys():
             team[name].append(ffloat(rows[5].text.strip()))
             team[name].append(ffloat(rows[16].text.strip()))
@@ -169,9 +176,8 @@ def teamProcess(soup):
         ptotals = soup.find("table", id="playoffs_totals").tbody.findAll("tr")
         for player in ptotals:
             rows = player.findAll("td")
-            name = rows[1].text.strip()
+            name = rows[1].text.strip() + teamName
             if name in team.keys():
-                team[name].append(iint(rows[2].text.strip()))
                 team[name].append(iint(rows[3].text.strip()))
                 team[name].append(iint(rows[4].text.strip()))
                 team[name].append(rows[5].text.strip())
@@ -184,7 +190,7 @@ def teamProcess(soup):
         padvanced = soup.find("table", id="playoffs_advanced").tbody.findAll("tr")
         for player in padvanced:
             rows = player.findAll("td")
-            name = rows[1].text.strip()
+            name = rows[1].text.strip() + teamName
             if name in team.keys():
                 team[name].append(ffloat(rows[5].text.strip()))
                 team[name].append(ffloat(rows[16].text.strip()))
@@ -193,19 +199,16 @@ def teamProcess(soup):
             else:
                 print("Something bad happened with {}".format(name))
 
-    else:
-        for name in team.keys():
-            team[name] += [0,0,0,"0:00",0,0,0,0,0,0,0]
-
     match   = re.compile(r"Off Rtg:\s([\d\.]+).+Def Rtg:\s([\d\.]+)")
     ratings = match.search(soup.find("span", text="Off Rtg").parent.parent.text)
-    for player in team.keys():
-        team[player].append(ratings.group(1))
-        team[player].append(ratings.group(2))
+    for name in team.keys():
+        while (len(team[name]) < 27):
+            team[name].append("NA")
+        team[name].append(ffloat(ratings.group(1)))
+        team[name].append(ffloat(ratings.group(2)))
 
     players = []
-    for player in team.keys():
-        players.append(team[player])
+    [players.append(team[player]) for player in team.keys()]
 
     return players
 
@@ -222,7 +225,9 @@ def dayParse(day, month, year):
         
         boxTags   = soup.findAll("a", href=re.compile(r"/boxscores/.+\.html"), text="Final")
         boxLinks  = [tag.get("href") for tag in boxTags]
-        dateVal   = int(str(year) + str(month) + str(day))
+        sMonth    = "0" + str(month) if len(str(month)) < 2 else str(month)
+        sDay      = "0" + str(day) if len(str(day)) < 2 else str(day)
+        dateVal   = int(str(year) + sMonth + sDay)
         for boxLink in boxLinks:
             boxSoup = BeautifulSoup(get("http://www.basketball-reference.com/{}".format(boxLink)).text)
             boxStats.append(boxProcess(boxSoup, dateVal))
@@ -234,7 +239,7 @@ def dayParse(day, month, year):
             if teamLink not in TEAMS:
                 TEAMS.append(teamLink)
                 teamSoup = BeautifulSoup(get("http://basketball-reference.com/{}".format(teamLink)).text)
-                teamStats.append(teamProcess(teamSoup))
+                teamStats.append(teamProcess(teamSoup, teamLink))
     PREVIOUS = []
     for team in TODAY:
         PREVIOUS.append(team)
@@ -247,15 +252,16 @@ def seasonParse(season):
     global COUNT
     global TEAMS
     TEAMS        = []
-    yearStatList = ["Name", "Position", "Height", "Weight", "Exp", "Age", "G", "GS", "MP", "3PA", "FGA", "PF", "PER", "USG%", "OWS", "DWS", "PG", "PGS", "PMP", "P3PA", "PFGA", "PPF", "PPER", "PUSG%", "POWS", "PDWS", "TORtg", "TDRtg"]
-    boxStatList  = ["Date", "Name", "Team", "Started", "B2B", "MP", "FGA", "3PA", "PF", "USG%", "ORtg", "DRtg", "Home", "Away", "Winner", "TORtg", "TDRtg"]
+    yearStatList = ["Name", "Team", "Position", "Height", "Weight", "Exp", "Age", "G", "GS", "MP", "FGA", "3PA", "PF", "PER", "USG%", "OWS", "DWS", "PG", "PGS", "PMP", "PFGA", "P3PA", "PPF", "PPER", "PUSG%", "POWS", "PDWS", "TORtg", "TDRtg"]
+    boxStatList  = ["Date", "Name", "Team", "Started", "B2B", "MP", "FGA", "ThreePA", "PF", "USG%", "ORtg", "DRtg", "Home", "Away", "Winner", "TORtg", "TDRtg"]
     yearString   = "{}-{}".format(season, season + 1)
+    print("Starting season {}".format(yearString))
     yearFile     = "YearStats{}.csv".format(yearString)
     gameFile     = "GameStats{}.csv".format(yearString)
     with open(yearFile, "w") as fpYear, open(gameFile, "w") as fpDay:
         yearStats = csv.writer(fpYear, quoting=csv.QUOTE_NONNUMERIC)
-        yearStats.writerow(yearStatList)
         dayStats  = csv.writer(fpDay, quoting=csv.QUOTE_NONNUMERIC)
+        yearStats.writerow(yearStatList)
         dayStats.writerow(boxStatList)
         for month in list(range(10,13)) + list(range(1,6)):
             year = season + 1 if month < 8 else season
@@ -265,16 +271,17 @@ def seasonParse(season):
                     dayStats.writerows(game)
                 for team in stats[1]:
                     yearStats.writerows(team)
-                if COUNT > 99:
-                    print("100 more games entered")
-                    COUNT-=100
-    print("Season {} done".format(yearString))
-    time.sleep(10)
+                if COUNT > 199:
+                    print("200 more games entered")
+                    COUNT -= 200
+    print("{} more games added\nSeason {} done".format(COUNT,yearString))
+    COUNT = 0
     return None
 
 
 def main():
-    for season in list(range(1985, 2014)):
+    for season in list(range(2005, 2014)):
+        time.sleep(5)
         seasonParse(season)
     return None
 
