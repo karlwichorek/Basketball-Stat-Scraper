@@ -280,7 +280,7 @@ def seasonParse(season):
 
 
 def main():
-    for season in list(range(2005, 2014)):
+    for season in list(range(1994, 2014)):
         time.sleep(5)
         seasonParse(season)
     return None
